@@ -1,5 +1,64 @@
 <?php
 
+/*  
+    Define ENVIRONMENT constant default to production, 
+    If you are under development change to 'development'
+*/
+if(!defined('ENVIRONMENT')) {
+    define('ENVIRONMENT', 'production');
+}
+
+/*
+    BASE_URL - Constant
+
+    Set this to according to your project base URL Ex. http://localhost/aggregate_minifier/
+
+    Trailing slash is required
+
+    BASE_URL constant is used to replace relative path in css files to absolute path
+    Ex.
+        .header-bg {
+            background-image: url(./images/header-bg.jpg);
+        }
+
+        will replace with
+
+        .header-bg {
+            background-image: url(http://localhost/aggregate_minifier/images/header-bg.jpg);
+        }
+*/
+define('BASE_URL', 'http://localhost/aggregate_minifier/example/');
+
+/*
+   TMP_DIR - Constant
+
+   Temporary directory, Used to place combined css and javascript files into directory.
+   
+   This directory must be writable and absolute path from BASE_URL
+
+*/
+define('TMP_DIR', './tmp/');
+
+
+/* Helper functions */
+
+    /*
+        $file_path(array) - List of css file paths
+    */
+    function generate_style_link($file_path) {
+        $minify_obj=new compress();
+        return $minify_obj->generate_style_link($file_path);
+    }
+
+    function generate_script_link($file_path) {
+        $minify_obj=new compress();
+        return $minify_obj->generate_script_link($file_path);
+    }
+
+/* Helper function end */
+
+
+
 class compress extends Minifier {
     public $environment;
     public $temp_dir;
@@ -7,22 +66,28 @@ class compress extends Minifier {
     
     public function __construct() {
         /* Temp folder path with trailing slash */
-        $this->temp_dir='./tmp/';
+        $this->temp_dir=TMP_DIR;
 
-        /* Base URL for setting absolute path in css aggregation 
-            if base_url function exist than use it for codeigniter
+        /*  Base URL for setting absolute path in css aggregation
+            if base_url function exist than use that Like for codeigniter
         */
-        $this->base_url=='http://localhost/fino-intranest/';
-        if(function_exists('base_url')) {
+        $this->base_url=BASE_URL;
+        if(function_exists('base_url') && empty(BASE_URL)) {
             $this->base_url=base_url(); 
-        }
+        }  
 
+
+        /*
+            ENVIRONMENT constant must defined for compressor to work  
+        */
         if(!defined('ENVIRONMENT')){
             $this->error("environment Constant not defined",E_USER_ERROR);
         }
 
         $this->check_dir_status($this->temp_dir);
     }
+
+
     /*
         @css_list(array) - array of file path string or single file path
 
@@ -59,6 +124,7 @@ class compress extends Minifier {
                 $combine_modified = filemtime($combine_path);
                 $css_list_modified=$this->get_latest_modify($css_list);
                 
+                /* If combined file is generated after any css modification return that file path */
                 if($combine_modified >= $css_list_modified) {
                     return str_replace('%s',$this->base_url.$combine_path, $link_tag);
                 }
@@ -71,11 +137,13 @@ class compress extends Minifier {
             if(ENVIRONMENT == 'production') {
                 /* Remove base URL from path if full url passed */
                 $file=str_replace($this->base_url, '', $file);
-                /* If file exist, do minify and concate operation */
+                
+                /* If file exist, do minify and Concat operation */
                 if(file_exists($file)) {
-
                     /* Add file name as a comment */
                     $this_file_content='/*'.$file.'*/'."\n";
+
+                    /* Get file content for aggregation */
                     $this_file_content.=$this->minify_style(file_get_contents($file));
 
                     /* replace relative url to absolute path with base url */
@@ -250,18 +318,7 @@ class compress extends Minifier {
         return $contents;
     }
 
-    /*
-        Get instance of codeingiter
-    */
-    public function get_ci_instance() {
-        ob_start();
-        require_once __DIR__ . "./../../index.php";
-        ob_end_clean();
-        return get_instance();
-    }
-
     function minify_script($input) {
-
         $input=$this->remove_comments($input);
 
         return preg_replace([
@@ -330,30 +387,6 @@ class compress extends Minifier {
     } 
 }
 
-/* Helper functions */
-
-/*
-    $file_path(array) - List of css file paths
-*/
-function generate_style_link($file_path) {
-    $minify_obj=new compress();
-    return $minify_obj->generate_style_link($file_path);
-}
-
-function generate_script_link($file_path) {
-    $minify_obj=new compress();
-    return $minify_obj->generate_script_link($file_path);
-}
-
-
-/*
- * This file is part of the JShrink package.
- *
- * (c) Robert Hafner <tedivm@tedivm.com>
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 
 /**
  * JShrink
